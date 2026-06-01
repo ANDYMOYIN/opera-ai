@@ -84,15 +84,30 @@ def health():
 
 
 # ── 托管前端静态文件 ──
-if os.path.isdir(FRONTEND_DIR) and os.path.isfile(os.path.join(FRONTEND_DIR, "index.html")):
-    from fastapi.responses import FileResponse
-    import os as _os
+HAS_FRONTEND = os.path.isdir(FRONTEND_DIR) and os.path.isfile(os.path.join(FRONTEND_DIR, "index.html"))
 
-    @app.get("/")
-    async def _root():
+if HAS_FRONTEND:
+    import mimetypes
+    from fastapi.responses import FileResponse, Response
+
+    # Mount static assets at /assets (Vite output)
+    assets_dir = os.path.join(FRONTEND_DIR, "assets")
+    fonts_dir = os.path.join(FRONTEND_DIR, "fonts")
+    if os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+    if os.path.isdir(fonts_dir):
+        app.mount("/fonts", StaticFiles(directory=fonts_dir), name="fonts")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Catch-all: serve static files or fall back to index.html for SPA routing."""
+        file_path = os.path.join(FRONTEND_DIR, full_path)
+        if full_path and os.path.isfile(file_path):
+            mt, _ = mimetypes.guess_type(file_path)
+            with open(file_path, "rb") as f:
+                return Response(content=f.read(), media_type=mt or "application/octet-stream")
         return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     print(f"[启动] 前端已挂载: {FRONTEND_DIR}")
 else:
     print("[启动] 前端目录缺失，仅提供 API 服务")
