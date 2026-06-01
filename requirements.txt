@@ -1,0 +1,11 @@
+librosa
+mediapipe
+opencv-python
+matplotlib
+numpy
+scipy
+neo4j
+pandas
+networkx
+soundfile
+jupyter

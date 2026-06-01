@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-opera-red: #c41e3a;
+  --color-opera-gold: #d4a843;
+  --color-opera-jade: #2d8b6e;
+  --color-opera-ink: #1a1210;
+  --color-opera-paper: #f5f0e8;
+  --color-opera-dark: #0d0a08;
+  --color-opera-cream: #e8dcc8;
+  --font-opera: "STKaiti", "KaiTi", "SimSun", serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-opera-dark);
+  color: var(--color-opera-paper);
+  font-family: var(--font-opera);
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--color-opera-dark); }
+::-webkit-scrollbar-thumb { background: var(--color-opera-gold); border-radius: 2px; }
+
+.canvas-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
