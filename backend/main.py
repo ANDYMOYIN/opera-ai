@@ -85,6 +85,13 @@ def health():
 
 # ── 托管前端静态文件 ──
 if os.path.isdir(FRONTEND_DIR) and os.path.isfile(os.path.join(FRONTEND_DIR, "index.html")):
+    from fastapi.responses import FileResponse
+    import os as _os
+
+    @app.get("/")
+    async def _root():
+        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     print(f"[启动] 前端已挂载: {FRONTEND_DIR}")
 else:
