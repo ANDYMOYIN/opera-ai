@@ -56,7 +56,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── 延迟导入 API 路由 ──
+# ── API 路由 ──
 from backend.api.graph import router as graph_router
 from backend.api.scripts import router as scripts_router
 from backend.api.sessions import router as sessions_router
@@ -83,30 +83,35 @@ def health():
     return {"status": "ok", "version": "2.0.0"}
 
 
-# ── 托管前端静态文件 ──
+# ── 前端静态文件（中间件模式，不依赖 Starlette mount 优先级）──
 HAS_FRONTEND = os.path.isdir(FRONTEND_DIR) and os.path.isfile(os.path.join(FRONTEND_DIR, "index.html"))
 
 if HAS_FRONTEND:
     import mimetypes
+    from starlette.middleware.base import BaseHTTPMiddleware
     from fastapi.responses import FileResponse, Response
 
-    # Mount static assets at /assets (Vite output)
-    assets_dir = os.path.join(FRONTEND_DIR, "assets")
-    fonts_dir = os.path.join(FRONTEND_DIR, "fonts")
-    if os.path.isdir(assets_dir):
-        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
-    if os.path.isdir(fonts_dir):
-        app.mount("/fonts", StaticFiles(directory=fonts_dir), name="fonts")
+    FRONTEND_INDEX = os.path.join(FRONTEND_DIR, "index.html")
 
-    @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
-        """Catch-all: serve static files or fall back to index.html for SPA routing."""
-        file_path = os.path.join(FRONTEND_DIR, full_path)
-        if full_path and os.path.isfile(file_path):
-            mt, _ = mimetypes.guess_type(file_path)
-            with open(file_path, "rb") as f:
-                return Response(content=f.read(), media_type=mt or "application/octet-stream")
-        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+    class FrontendMiddleware(BaseHTTPMiddleware):
+        """SPA 中间件：API 透传，其他请求返回前端静态文件或 index.html。"""
+        async def dispatch(self, request, call_next):
+            path = request.url.path
+            # API / WebSocket 请求透传给路由处理器
+            if path.startswith("/api/") or path.startswith("/ws"):
+                return await call_next(request)
+
+            # 尝试返回实际静态文件
+            file_path = os.path.join(FRONTEND_DIR, path.lstrip("/"))
+            if file_path != FRONTEND_INDEX and os.path.isfile(file_path):
+                mt, _ = mimetypes.guess_type(file_path)
+                with open(file_path, "rb") as f:
+                    return Response(content=f.read(), media_type=mt or "application/octet-stream")
+
+            # SPA 回退：所有其他路径返回 index.html
+            return FileResponse(FRONTEND_INDEX)
+
+    app.add_middleware(FrontendMiddleware)
 
     print(f"[启动] 前端已挂载: {FRONTEND_DIR}")
 else:
