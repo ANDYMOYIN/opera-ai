@@ -83,36 +83,11 @@ def health():
     return {"status": "ok", "version": "2.0.0"}
 
 
-# ── 前端静态文件（中间件模式，不依赖 Starlette mount 优先级）──
-HAS_FRONTEND = os.path.isdir(FRONTEND_DIR) and os.path.isfile(os.path.join(FRONTEND_DIR, "index.html"))
-
-if HAS_FRONTEND:
-    import mimetypes
-    from starlette.middleware.base import BaseHTTPMiddleware
-    from fastapi.responses import FileResponse, Response
-
-    FRONTEND_INDEX = os.path.join(FRONTEND_DIR, "index.html")
-
-    class FrontendMiddleware(BaseHTTPMiddleware):
-        """SPA 中间件：API 透传，其他请求返回前端静态文件或 index.html。"""
-        async def dispatch(self, request, call_next):
-            path = request.url.path
-            # API / WebSocket 请求透传给路由处理器
-            if path.startswith("/api/") or path.startswith("/ws"):
-                return await call_next(request)
-
-            # 尝试返回实际静态文件
-            file_path = os.path.join(FRONTEND_DIR, path.lstrip("/"))
-            if file_path != FRONTEND_INDEX and os.path.isfile(file_path):
-                mt, _ = mimetypes.guess_type(file_path)
-                with open(file_path, "rb") as f:
-                    return Response(content=f.read(), media_type=mt or "application/octet-stream")
-
-            # SPA 回退：所有其他路径返回 index.html
-            return FileResponse(FRONTEND_INDEX)
-
-    app.add_middleware(FrontendMiddleware)
-
+# ── 前端静态文件 ──
+# 关键：API 路由必须先注册（上面已完成），StaticFiles 最后 mount。
+# Starlette 按注册顺序匹配，路由先于 mount，所以 /api/* 不会被 StaticFiles 拦截。
+if os.path.isdir(FRONTEND_DIR) and os.path.isfile(os.path.join(FRONTEND_DIR, "index.html")):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     print(f"[启动] 前端已挂载: {FRONTEND_DIR}")
 else:
     print("[启动] 前端目录缺失，仅提供 API 服务")
