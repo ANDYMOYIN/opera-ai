@@ -1,33 +1,36 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller 打包配置 — 戏曲多模态 AI 传习平台 v2.0"""
+"""PyInstaller — 戏曲多模态 AI 传习平台 v2.0
+
+关键：PyInstaller datas 格式是 (src_path, dst_directory)，
+不是 (src_path, dst_path)。dst 是目标目录，文件名保持不变。
+"""
 
 import os, sys
-from PyInstaller.utils.hooks import collect_all, collect_submodules, collect_data_files
+from PyInstaller.utils.hooks import collect_all
 
 ROOT = SPECPATH
-
-# 前端构建产物
-frontend_dist = os.path.join(ROOT, 'frontend', 'dist')
 
 datas = []
 binaries = []
 
-# 前端静态文件
+# ── 前端构建产物 ──
+frontend_dist = os.path.join(ROOT, 'frontend', 'dist')
 if os.path.isdir(frontend_dist):
     for root_dir, dirs, files in os.walk(frontend_dist):
+        rel_dir = os.path.relpath(root_dir, ROOT).replace('\\', '/')
         for f in files:
             src = os.path.join(root_dir, f)
-            dst = os.path.relpath(src, ROOT)
-            datas.append((src, dst))
+            datas.append((src, rel_dir))
+    print(f"[spec] 前端: {len(datas)} files")
 
-# graph schema
+# ── graph schema ──
 graph_dir = os.path.join(ROOT, 'graph')
 if os.path.isdir(graph_dir):
     for f in os.listdir(graph_dir):
         if f.endswith('.cypher'):
-            datas.append((os.path.join(graph_dir, f), f'graph/{f}'))
+            datas.append((os.path.join(graph_dir, f), 'graph'))
 
-# backend 所有 Python 模块
+# ── backend Python 模块 ──
 backend_datas, backend_bins, backend_hidden = collect_all('backend')
 datas += backend_datas
 binaries += backend_bins

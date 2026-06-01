@@ -11,8 +11,9 @@ else:
 sys.path.insert(0, os.path.join(ROOT, "backend") if os.path.isdir(os.path.join(ROOT, "backend")) else ROOT)
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 # 配置
@@ -23,7 +24,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(os.path.join(OUTPUT_DIR, "diagrams"), exist_ok=True)
 os.makedirs(os.path.join(OUTPUT_DIR, "sessions"), exist_ok=True)
 
-# 前端静态文件目录（构建产物）
+# 前端静态文件目录
 FRONTEND_DIR = os.path.join(ROOT, "frontend", "dist")
 if not os.path.isdir(FRONTEND_DIR):
     FRONTEND_DIR = os.path.join(ROOT, "dist")
@@ -83,12 +84,48 @@ def health():
     return {"status": "ok", "version": "2.0.0"}
 
 
-# ── 前端静态文件 ──
-# 关键：API 路由必须先注册（上面已完成），StaticFiles 最后 mount。
-# Starlette 按注册顺序匹配，路由先于 mount，所以 /api/* 不会被 StaticFiles 拦截。
-if os.path.isdir(FRONTEND_DIR) and os.path.isfile(os.path.join(FRONTEND_DIR, "index.html")):
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+# ════════════════════════════════════════════════════════════════
+# 前端托管 — 显式路由，PyInstaller 和源码环境均可用
+# 在 frozen 模式下跳过 isdir 检查（PyInstaller 的 MEIPASS 目录在模块
+# 加载阶段可能尚未完全就绪，导致 isdir 返回 False）
+# ════════════════════════════════════════════════════════════════
+
+_FROZEN = getattr(sys, 'frozen', False)
+INDEX = os.path.join(FRONTEND_DIR, "index.html")
+
+if _FROZEN or (os.path.isdir(FRONTEND_DIR) and os.path.isfile(INDEX)):
+
+    # 预读 index.html 到内存，PyInstaller 环境下 FileResponse 会报 "not a file"
+    try:
+        with open(INDEX, "rb") as f:
+            _index_bytes = f.read()
+    except Exception:
+        _index_bytes = b"<html><body>Error loading frontend</body></html>"
+
+    assets = os.path.join(FRONTEND_DIR, "assets")
+    if _FROZEN or os.path.isdir(assets):
+        app.mount("/assets", StaticFiles(directory=assets), name="assets")
+
+    @app.get("/favicon.svg")
+    def _fav():
+        p = os.path.join(FRONTEND_DIR, "favicon.svg")
+        return FileResponse(p) if os.path.isfile(p) else Response(content=_index_bytes, media_type="text/html")
+
+    @app.get("/icons.svg")
+    def _icons():
+        p = os.path.join(FRONTEND_DIR, "icons.svg")
+        return FileResponse(p) if os.path.isfile(p) else Response(content=_index_bytes, media_type="text/html")
+
+    @app.get("/")
+    async def spa_root():
+        return Response(content=_index_bytes, media_type="text/html")
+
+    @app.get("/{path:path}")
+    async def spa_fallback(request: Request, path: str):
+        return Response(content=_index_bytes, media_type="text/html")
+
     print(f"[启动] 前端已挂载: {FRONTEND_DIR}")
+
 else:
     print("[启动] 前端目录缺失，仅提供 API 服务")
 
