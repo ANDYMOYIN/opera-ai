@@ -17,7 +17,7 @@ else:
     sys.path.insert(0, BASE)
 
 HOST = "127.0.0.1"
-DEFAULT_PORT = 8000
+DEFAULT_PORT = 8090
 URL = ""
 
 
@@ -64,7 +64,7 @@ def main():
     # 2. 找可用端口
     port = DEFAULT_PORT
     if not _port_free(port):
-        for p in range(8001, 8006):
+        for p in range(8091, 8096):
             if _port_free(p):
                 port = p
                 break

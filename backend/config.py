@@ -11,7 +11,7 @@ NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "opera123")
 
 # Server
 HOST = os.getenv("HOST", "127.0.0.1")
-PORT = int(os.getenv("PORT", "8000"))
+PORT = int(os.getenv("PORT", "8090"))
 
 # CORS
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")

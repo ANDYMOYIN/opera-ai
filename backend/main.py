@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 # 配置
 HOST = "127.0.0.1"
-PORT = 8000
+PORT = 8090
 OUTPUT_DIR = os.path.join(os.path.expanduser("~"), ".opera-ai-output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(os.path.join(OUTPUT_DIR, "diagrams"), exist_ok=True)
